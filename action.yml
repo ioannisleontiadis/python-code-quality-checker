@@ -1,0 +1,46 @@
+name: 'Python Code Quality Checker'
+description: 'Run pylint and mypy on modified Python files with automatic dependency detection'
+author: 'Ioannis Leontiadis'
+
+outputs:
+  changed_files:
+    description: 'List of changed Python files'
+    value: ${{ steps.changed-files.outputs.changed_files }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.14'
+
+    - name: Detect changed Python files
+      id: changed-files
+      shell: bash
+      env:
+        GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        GITHUB_EVENT_AFTER: ${{ github.event.after }}
+      run: ${{ github.action_path }}/detect-changed-files.sh
+
+    - name: Install dependencies
+      shell: bash
+      env:
+        CHANGED_FILES: ${{ steps.changed-files.outputs.changed_files }}
+      run: ${{ github.action_path }}/install-dependencies.sh
+
+    - name: Analyse changed files with pylint
+      shell: bash
+      env:
+        CHANGED_FILES: ${{ steps.changed-files.outputs.changed_files }}
+      run: ${{ github.action_path }}/run-pylint.sh
+
+    - name: Analyse changed files with mypy
+      shell: bash
+      env:
+        CHANGED_FILES: ${{ steps.changed-files.outputs.changed_files }}
+      run: ${{ github.action_path }}/run-mypy.sh
+
+    - name: Check quality status
+      shell: bash
+      run: ${{ github.action_path }}/check-quality-status.sh
