@@ -8,20 +8,30 @@
 CHANGED_PY_FILES="${CHANGED_FILES}"
 STATUS_DIR="${RUNNER_TEMP:-/tmp}"
 PYLINT_STATUS_FILE="$STATUS_DIR/pylint_status"
+EXISTING_FILES=""
 
-if [ -z "$CHANGED_PY_FILES" ]; then
-  echo "No Python files to analyze"
-  echo "0" > "$PYLINT_STATUS_FILE"
+for file in $CHANGED_PY_FILES; do
+  if [ -f "$file" ]; then
+    EXISTING_FILES="${EXISTING_FILES}${file} "
+  fi
+done
+EXISTING_FILES="${EXISTING_FILES%" "}"
+
+if [ -z "$EXISTING_FILES" ]; then
+  echo "No existing Python files to analyze"
+  echo "1" > "$PYLINT_STATUS_FILE"
   exit 0
 fi
 
 # Run pylint on the changed files and capture output
 echo "## Pylint Results" >> "$GITHUB_STEP_SUMMARY"
+echo "Analyzed files: $EXISTING_FILES" >> "$GITHUB_STEP_SUMMARY"
 echo '```' >> "$GITHUB_STEP_SUMMARY"
 
 # Capture both stdout and stderr
-PYLINT_OUTPUT=$(pylint $CHANGED_PY_FILES 2>&1) || true
-PYLINT_EXIT_CODE=$?
+set +e
+PYLINT_OUTPUT=$(pylint $EXISTING_FILES 2>&1)
+set -e
 
 echo "$PYLINT_OUTPUT" >> "$GITHUB_STEP_SUMMARY"
 echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -36,7 +46,7 @@ echo "$SCORE"
 
 # Check if score equals 10 or 10.0
 if [ -z "$SCORE" ]; then
-  # No score found, likely pylint had an error
+  # No score found means pylint did not produce a standard report.
   echo "0" > "$PYLINT_STATUS_FILE"
 elif [ "$SCORE" = "10.0" ] || [ "$SCORE" = "10" ] || [ "$SCORE" = "10.00" ]; then
   echo "CORRECT"

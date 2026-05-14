@@ -8,20 +8,31 @@
 CHANGED_PY_FILES="${CHANGED_FILES}"
 STATUS_DIR="${RUNNER_TEMP:-/tmp}"
 MYPY_STATUS_FILE="$STATUS_DIR/mypy_status"
+EXISTING_FILES=""
 
-if [ -z "$CHANGED_PY_FILES" ]; then
-  echo "No Python files to analyze"
-  echo "0" > "$MYPY_STATUS_FILE"
+for file in $CHANGED_PY_FILES; do
+  if [ -f "$file" ]; then
+    EXISTING_FILES="${EXISTING_FILES}${file} "
+  fi
+done
+EXISTING_FILES="${EXISTING_FILES%" "}"
+
+if [ -z "$EXISTING_FILES" ]; then
+  echo "No existing Python files to analyze"
+  echo "1" > "$MYPY_STATUS_FILE"
   exit 0
 fi
 
 # Run mypy on the changed files and capture output
 echo "## Mypy Results" >> "$GITHUB_STEP_SUMMARY"
+echo "Analyzed files: $EXISTING_FILES" >> "$GITHUB_STEP_SUMMARY"
 echo '```' >> "$GITHUB_STEP_SUMMARY"
 
 # Capture both stdout and stderr
-MYPY_OUTPUT=$(mypy $CHANGED_PY_FILES 2>&1) || true
+set +e
+MYPY_OUTPUT=$(mypy $EXISTING_FILES 2>&1)
 MYPY_EXIT_CODE=$?
+set -e
 
 echo "$MYPY_OUTPUT" >> "$GITHUB_STEP_SUMMARY"
 echo '```' >> "$GITHUB_STEP_SUMMARY"
